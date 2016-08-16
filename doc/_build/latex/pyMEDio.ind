@@ -1,0 +1,20 @@
+\begin{theindex}
+\def\bigletter#1{{\Large\sffamily#1}\nopagebreak\vspace{1mm}}
+
+  \bigletter {Symbols}
+  \item \_read\_elem\_data() (pyMEDio.MEDReader method), \hyperpage{5}
+
+  \indexspace
+  \bigletter M
+  \item MEDReader (class in pyMEDio), \hyperpage{5}
+  \item MEDWriter (class in pyMEDio), \hyperpage{5}
+
+  \indexspace
+  \bigletter R
+  \item read\_mesh() (pyMEDio.MEDReader method), \hyperpage{5}
+
+  \indexspace
+  \bigletter W
+  \item write\_mesh() (pyMEDio.MEDWriter method), \hyperpage{5}
+
+\end{theindex}
