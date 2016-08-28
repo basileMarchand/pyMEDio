@@ -25,10 +25,10 @@ All ideas for new functionalities or comments are welcome and can be send to bas
 
 - extend your PYTHONPATH variable : 
   -  in your .bashrc file as follow   
-         export PYTHONPATH="/path/to/pyPointer/package:$PYTHONPATH"
+         export PYTHONPATH="/path/to/pyMEDio:$PYTHONPATH"
   -  or dynamicaly in your python script as follow   
          import sys  
-         sys.path.insert(0, "path/to/pyPointer/package")  
+         sys.path.insert(0, "path/to/pyMEDio")  
 
 
 
