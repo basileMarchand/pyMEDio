@@ -103,6 +103,27 @@ class MEDReader(object):
         """
 
         return list(self.med_root['/ENS_MAA'])
+
+    def get_mesh_info(self, mesh_name):
+        """ 
+        Method which returns some information about mesh
+
+        Parameter 
+        ----------
+        mesh_name : (str)
+             the name of the mesh to get information
+        
+        Return
+        ------
+        output : dict
+             dictionnary which contains some informations about the mesh mesh_name
+        """
+        iden_list = list(self.med_root['ENS_MAA'][mesh_name].keys())
+        iden = iden_list[0]
+        info = self.med_root['ENS_MAA'][mesh_name][iden]['NOE']['NUM'].attrs['NBR']
+        return info
+
+
     
     def read_mesh(self, msh_name=None):
         """
@@ -216,6 +237,11 @@ class MEDReader(object):
             if len(v)!=0:
                 FINAL_ELEM_BY_TYPES[k] = v
         return NE, CONNEC, FINAL_ELEM_BY_TYPES, group_dic
+
+
+    def get_fields_names(self):
+        return NotImplementedError
+
     
     def read_field_at_time(self, field_id, time, ite):
         field_support, mesh_support  = self._get_field_support(field_id, time, ite)
