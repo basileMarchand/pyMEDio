@@ -193,7 +193,6 @@ class MEDWriter(object):
             group += ' '
         return bytearray(group, 'utf-8')
 
-
     def write_field_at_time(self, field, time=0., ite=0):
         if field.SUPPORT == "NODES":
             self._write_field_on_nodes_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, (time, ite))

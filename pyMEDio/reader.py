@@ -238,11 +238,38 @@ class MEDReader(object):
                 FINAL_ELEM_BY_TYPES[k] = v
         return NE, CONNEC, FINAL_ELEM_BY_TYPES, group_dic
 
-
     def get_fields_names(self):
-        return NotImplementedError
+        return list(self.med_root['/CHA/'].keys())
 
-    
+    def read_field(self, field_id):
+        """ 
+        Method which read all iterations, time step, of a given field
+        
+        Parameter 
+        ---------
+           field_id : (str)
+               name of the fields steps to read
+        Output
+        -------
+           out : (list)
+               the list of all time step for the given field name
+        """
+        list_steps = self._get_field_steps(field_id)
+        field_list = []
+        for time, ite in list_steps:
+            field = self.read_field_at_time(field_id, time, ite)
+            field_list.append(field)
+        return field_list
+        
+    def _get_field_steps(self, field_id):
+        grp_sol = self.med_root['/CHA/'][field_id]
+        list_steps = []
+        for index in grp_sol.keys():
+            time = grp_sol[index].attrs["NDT"]
+            ite  = grp_sol[index].attrs["PDT"]
+            list_steps.append( (time, ite) )
+        return list_steps
+
     def read_field_at_time(self, field_id, time, ite):
         field_support, mesh_support  = self._get_field_support(field_id, time, ite)
 
