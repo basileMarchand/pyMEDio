@@ -37,8 +37,11 @@ logging.basicConfig(level=logging.INFO)
 
 
 def verbose():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("pyMEDio.reader").setLevel(logging.DEBUG)
+    logging.getLogger("pyMEDio.writer").setLevel(logging.DEBUG)
 
-
+def quiet():
+    logging.getLogger("pyMEDio.reader").setLevel(logging.ERROR)
+    logging.getLogger("pyMEDio.writer").setLevel(logging.ERROR)
 
 
