@@ -120,11 +120,27 @@ class MEDReader(object):
         """
         iden_list = list(self.med_root['ENS_MAA'][mesh_name].keys())
         iden = iden_list[0]
-        info = self.med_root['ENS_MAA'][mesh_name][iden]['NOE']['NUM'].attrs['NBR']
+        info = {}
+        info['NN'] = self.med_root['ENS_MAA'][mesh_name][iden]['NOE']['NUM'].attrs['NBR']
+        NE = 0
+        list_elem_types = list(self.med_root['ENS_MAA'][mesh_name][iden]['MAI'].keys())
+        tmp = []
+        for key in list_elem_types:
+            NEt = self.med_root['ENS_MAA'][mesh_name][iden]['MAI'][key]['NUM'].attrs['NBR']
+            NE += NEt
+            tmp.append((key,NE))
+        info['NE'] = NEt
+        info['ELEMS'] = tmp
+        med_grp_name = []
+        grp_salome_list = list(self.med_root['FAS'][mesh_name]['ELEME'].keys())
+        for grp_key in grp_salome_list:
+            name_bytes = self.med_root['FAS'][mesh_name]['ELEME'][grp_key]["GRO"]['NOM'][:].tostring()
+            name = name_bytes.decode().rstrip("\x00").rstrip()
+            med_grp_name.append(name)
+
+        info['GROUPS'] = med_grp_name
         return info
 
-
-    
     def read_mesh(self, msh_name=None):
         """
         method which read mesh definitionand return a Mesh object
@@ -238,6 +254,16 @@ class MEDReader(object):
                 FINAL_ELEM_BY_TYPES[k] = v
         return NE, CONNEC, FINAL_ELEM_BY_TYPES, group_dic
 
+
+    def get_field_info(self, field):
+        field_info = {}
+        
+        steps = self._get_field_steps(field)
+        field_info['steps'] = steps
+        field_info["support"] = self._get_field_support(field, steps[0][0], steps[0][1]) 
+        field_info["components"] = self._get_field_components(field)
+        return field_info
+
     def get_fields_names(self):
         return list(self.med_root['/CHA/'].keys())
 
@@ -302,6 +328,15 @@ class MEDReader(object):
             return "NODES", mesh_support
         elif "MAI" in sub_key:
             return "ELEMS", mesh_support
+
+    def _get_field_components(self, field_id):
+        grp_sol = self.med_root['/CHA/'][field_id]
+        N_COMPO = grp_sol.attrs["NCO"]
+        
+        comp_crude = grp_sol.attrs["NOM"]
+        components = [ comp_crude[(i*16):(i+1)*16].strip().decode('utf-8') for i in range(N_COMPO)]
+        return components
+
 
     def _read_nodal_field(self, field_id, time, ite):
         """
