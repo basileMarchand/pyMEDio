@@ -212,8 +212,12 @@ class MEDReader(object):
         med_grp_name = {}
         grp_salome_list = list(self.med_root['FAS'][msh_name]['ELEME'].keys())
         for grp_key in grp_salome_list:
-            name_bytes = self.med_root['FAS'][msh_name]['ELEME'][grp_key]["GRO"]['NOM'][:].tostring()
-            name = name_bytes.decode().rstrip("\x00").rstrip()
+            name_bytes = self.med_root['FAS'][msh_name]['ELEME'][grp_key]["GRO"]['NOM'][:]
+            name_tmp = []
+            for word in name_bytes:
+                name_tmp.append(word.tostring().decode().rstrip("\x00").rstrip())
+            name = "_".join(name_tmp)
+
             med_id = str(self.med_root['FAS'][msh_name]['ELEME'][grp_key].attrs['NUM'])
             med_grp_name[med_id] = name
         
