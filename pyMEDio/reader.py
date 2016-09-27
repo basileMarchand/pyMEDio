@@ -183,8 +183,15 @@ class MEDReader(object):
         if len(iden_list) > 1:
             _LOGGER.warning("MED file contains multiple mesh iteration (default iteration 0 is read)")
         iden = iden_list[0]
-        NUM = np.array(self.med_root['ENS_MAA'][msh_name][iden]['NOE']['NUM'], dtype=np.int32)
+        try:
+            NUM = np.array(self.med_root['ENS_MAA'][msh_name][iden]['NOE']['NUM'], dtype=np.int32)
+        except:
+            _LOGGER.info("nodes initialy not numbering")
+            NN = self.med_root['ENS_MAA'][msh_name][iden]['NOE']['COO'].attrs['NBR']
+            NUM = np.arange(1,NN+1)
+
         NN = NUM.shape[0]
+        
         COOR = np.array(self.med_root['ENS_MAA'][msh_name][iden]['NOE']['COO']).reshape((-1,NN)).T
         if COOR.shape[1]!=3:
             COOR = np.concatenate((COOR, np.zeros((NN,1))),axis=1)
