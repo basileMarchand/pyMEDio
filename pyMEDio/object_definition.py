@@ -46,6 +46,44 @@ class Mesh(object):
         return text
         
 
+    def __add__(self, other):
+        ### Used to merge two meshes, don't remove double nodes !!
+        res = Mesh("merged")
+        res.NN = self.NN + other.NN
+        res.NE = self.NE + other.NE
+        offset_coor = other.COOR + self.NE
+        res.COOR = np.concatenate((self.COOR, offset_coor),axis=0)
+        offset_connec = other.CONNEC
+        ## Merge connectivity table
+        for i,elem in enumerate(offset_connec):
+            tmp = np.array(elem[3:])
+            elem[0] += self.NE   ## offset elem numbering
+            tmp += self.NN  ## offset nodes numbering
+            offset_connec[i] = elem[:3] + tmp.tolist()
+
+        res.CONNEC = np.concatenate((self.CONNEC, other.CONNEC), axis=0)
+        ## Merge ELEMS dictionnary 
+        res.ELEMS = self.ELEMS
+        for key,value in other.ELEMS.items():
+            tmp = (np.array(value)+self.NE).tolist()
+            if key in res.ELEMS.keys():
+                res.ELEMS[key] += tmp
+            else:
+                res.ELEMS[key] = tmp
+
+        ## Merge groups dictionnary
+        res.GROUPS = self.GROUPS
+        for key,value in other.GROUPS.items():
+            tmp = (np.array(value)+self.NE).tolist()
+            if key in res.GROUPS.keys():
+                res.GROUPS[key] += tmp
+            else:
+                res.GROUPS[key] = tmp
+                
+        return res
+        
+
+
 class Field(object):
     def __init__(self, name, components, support, mesh):
         self.NAME = name
