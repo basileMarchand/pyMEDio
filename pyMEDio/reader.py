@@ -316,14 +316,18 @@ class MEDReader(object):
             mesh = self.read_mesh(mesh_support)
 
         if field_support == "NODES":
-            val, components = self._read_nodal_field(field_id, time, ite)
+            val, components, profil = self._read_nodal_field(field_id, time, ite)
         elif field_support=="ELEMS":
-            val, components = self._read_elem_field(field_id, time, ite)
+            val, components, profil = self._read_elem_field(field_id, time, ite)
         elif field_support=="GAUSS":
-            val, components = self._read_gauss_field(field_id, time, ite)
+            val, components, profil = self._read_gauss_field(field_id, time, ite)
 
         res = Field(field_id, components, field_support, mesh) 
-        res[:] = val
+        res.PROFILS = profil 
+        if profil is not None:
+            res[list(profil.values())[0]] = val
+        else:
+            res[:] = val
         return res
 
     def _get_field_support(self, field_id, time, ite):
@@ -372,11 +376,21 @@ class MEDReader(object):
         
         comp_crude = grp_sol.attrs["NOM"]
         components = [ comp_crude[(i*16):(i+1)*16].strip().decode('utf-8') for i in range(N_COMPO)]
-        grp_sol_t = grp_sol["%.20d%.20d"%(time, time)]['NOE/MED_NO_PROFILE_INTERNAL']
+
+        field_time = grp_sol["%.20d%.20d"%(time, time)]['NOE']
+        profil_name = field_time.attrs['PFL']
+        if profil_name != "MED_NO_PROFILE_INTERNAL":
+            profil = self.__read_profile(profil_name)
+        else:
+            profil = None
+
+        key = list(field_time.keys())[0]
+        grp_sol_t = field_time[key]
         NBR = grp_sol_t.attrs['NBR']
-        field_crude = grp_sol["%.20d%.20d"%(time, time)]['NOE/MED_NO_PROFILE_INTERNAL/CO'][:]
-        field = field_crude.reshape((N_COMPO,NBR)).T
-        return field, components
+        field_crude = grp_sol_t['CO'][:]
+        field = field_crude.reshape((N_COMPO,-1)).T
+        return field, components, profil
+
 
     def _read_elem_field(self, field_id, time, ite):
         """
@@ -436,6 +450,15 @@ class MEDReader(object):
               the require field in a numpy ndarray format with the size (Nelem, NGaussPoints , Ncomponents)
         """ 
         return NotImplementedError
+
+    def __read_profile(self, profil_name):
+        profil_name = profil_name.decode()
+        profil_grp = self.med_root['/PROFILS/'+profil_name]
+        nbr = profil_grp.attrs['NBR']
+
+        index = profil_grp['PFL'][:] -1    ## Numerotation begin to 1
+        res = {profil_name: index}
+        return res
 
     def __repr__(self):
         return NotImplementedError

@@ -177,7 +177,8 @@ class MEDWriter(object):
             grp_1_0_ELEME_KEY_GRO = grp_1_0_ELEME_KEY.create_group("GRO")
             grp_1_0_ELEME_KEY_GRO.attrs.create('NBR', data=1, dtype=np.int32)
             dset = grp_1_0_ELEME_KEY_GRO.create_dataset("NOM", (1,), dtype=('i1',(80,)))
-            dset[0] = bytearray(key.ljust(80), 'utf-8')
+            key_reduce = key.strip()
+            dset[0] = bytearray(key_reduce.ljust(80), 'utf-8')
         grp_1_0_KEY = grp_1_0.create_group("FAMILLE_ZERO")
         grp_1_0_KEY.attrs.create('NUM', data=0)
 
@@ -193,21 +194,35 @@ class MEDWriter(object):
             group += ' '
         return bytearray(group, 'utf-8')
 
-    def write_field_at_time(self, field, time=0., ite=0):
+    def write_field_at_time(self, field, groups=None, time=0., ite=0): 
+        # compute profil if required
+        profils = None
+        if groups is not None:
+            profils = self.__compute_profile(groups, field.SUPPORT)
+        if field.PROFILS is not None:
+            profils = field.PROFILS
+
         if field.SUPPORT == "NODES":
-            self._write_field_on_nodes_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, (time, ite))
+            self._write_field_on_nodes_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, profils, (time, ite))
         elif field.SUPPORT == "ELEMS":
             self._write_field_on_elems_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, field.MESH.ELEMS , (time, ite))
         elif field.SUPPORT == "GAUSS":
             self._write_field_on_gauss_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, (time, ite))
 
-    def _write_field_on_nodes_at_time(self, mesh, field_id, field, COMPO, time): 
+    def _write_field_on_nodes_at_time(self, mesh, field_id, field, COMPO, profils, time): 
         grp = self.__field_structure(mesh, field_id, COMPO, time)
         grp_noe = grp.create_group("NOE")
         grp_noe.attrs.create('GAU', data=b'')
-        grp_noe.attrs.create('PFL', data=b'MED_NO_PROFILE_INTERNAL', dtype=np.dtype('a24'))
+        if profils is None:
+            grp_noe.attrs.create('PFL', data=b'MED_NO_PROFILE_INTERNAL', dtype=np.dtype('a24'))
+        else:
+            profil_name = list(profils.keys())[0]
+            self.__create_profil(profil_name, profils[profil_name])
+            grp_noe.attrs.create('PFL', data=profil_name.encode(), dtype=np.dtype('a24'))
+            ## then reduce field to profil index
+            field = field[profils[profil_name]]
         ## level 4
-        grp_4 = grp_noe.create_group('MED_NO_PROFILE_INTERNAL')
+        grp_4 = grp_noe.create_group(profil_name)
         grp_4.attrs.create('GAU', data=b'')
         grp_4.attrs.create('NBR', data=field.shape[0], dtype=np.int32)
         grp_4.attrs.create('NGA', data=1, dtype=np.int32)
@@ -273,6 +288,18 @@ class MEDWriter(object):
         return grp_debile
 
 
+    def __create_profil(self, profil_name, profil_index):
+        """ 
+        Method which create PROFIL in a med file
+        """
+        if "PROFILS" not in self.__med_root.keys():
+            pfl_group = self.__med_root.create_group("PROFILS")
+        if profil_name not in self.__med_root["/PROFILS"].keys():
+            pfl_group = self.__med_root["/PROFILS"].create_group(profil_name)
+            pfl_group.attrs.create('NBR', data=profil_index.shape[0], dtype=np.int32)
+            pfl_group.create_dataset("PFL", data=profil_index+1)
+        else:
+            pass
 
 
 
