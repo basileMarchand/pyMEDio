@@ -45,14 +45,13 @@ class Mesh(object):
         text += "   GROUPS : " + " ; ".join(list(self.GROUPS.keys())) + "\n"
         return text
         
-
-    def __add__(self, other):
+    def merge_without_remove(self, other):
         ### Used to merge two meshes, don't remove double nodes !!
         res = Mesh("merged")
         res.NN = self.NN + other.NN
         res.NE = self.NE + other.NE
-        offset_coor = other.COOR + self.NE
-        res.COOR = np.concatenate((self.COOR, offset_coor),axis=0)
+        #offset_coor = other.COOR + self.NE
+        res.COOR = np.concatenate((self.COOR, other.COOR),axis=0)
         offset_connec = other.CONNEC
         ## Merge connectivity table
         for i,elem in enumerate(offset_connec):
@@ -61,7 +60,7 @@ class Mesh(object):
             tmp += self.NN  ## offset nodes numbering
             offset_connec[i] = elem[:3] + tmp.tolist()
 
-        res.CONNEC = np.concatenate((self.CONNEC, other.CONNEC), axis=0)
+        res.CONNEC = np.concatenate((self.CONNEC, offset_connec), axis=0)
         ## Merge ELEMS dictionnary 
         res.ELEMS = self.ELEMS
         for key,value in other.ELEMS.items():
@@ -79,7 +78,11 @@ class Mesh(object):
                 res.GROUPS[key] += tmp
             else:
                 res.GROUPS[key] = tmp
-                
+        return res
+
+
+    def __add__(self, other):
+        res = self.merge_without_remove(other)
         return res
         
 
@@ -91,6 +94,7 @@ class Field(object):
         self.COMPONENTS = components
         self.NCOMPO = len(components)
         self.SUPPORT = support
+        self.PROFILS = None
         if support=="NODES":
             self.SIZE = (self.MESH.NN, self.NCOMPO)
         elif support=="ELEMS":
@@ -108,8 +112,42 @@ class Field(object):
 
     def __setitem__(self, item, value):
         self.__values[item] = value
-    
-    def __repr__(self):
+
+    def __merge_components(self, other):
+        if self.COMPONENTS == other.COMPONENTS:
+            merged_components = self.COMPONENTS
+        elif self.NCOMPO == other.NCOMPO:
+            _LOGGER.warning("The two fields  doesn't have the same components name, it is used : {}".format(";".join(self.COMPONENTS)))
+            merged_components = self.COMPONENTS
+        else:
+            _LOGGER.error("The two fields to merged doesn't have the same number of components")
+            sys.exit(3)
+        return self.NCOMPO, merged_components
+
+    def __add__(self, other):
+        merged_name = self.NAME
+        nbr_comp, comp = self.__merge_components(other)
+        if self.SUPPORT != other.SUPPORT:
+            _LOGGER.error("The two fields to merge are defined to different level")
+            sys.exit(4)
+        supp = self.SUPPORT        
+        mesh = self.MESH + other.MESH
+        res = Field(merged_name, comp, supp, mesh)
+        
+        res[:] = np.concatenate((self.__values, other[:]), axis=0)
+
+        if self.PROFILS is not None:
+            prof_name1 = list(self.PROFILS.keys())[0]
+            prof_name2 = list(other.PROFILS.keys())[0]
+            if res.SUPPORT == "NODES":
+                prof_index = np.concatenate((self.PROFILS[prof_name1],(other.PROFILS[prof_name2]+self.MESH.NN)), axis=0) 
+            elif res.SUPPORT == "ELEMS":
+                prof_index = np.concatenate((self.PROFILS[prof_name1],(other.PROFILS[prof_name2]+self.MESH.NE)), axis=0)
+            res.PROFILS = {prof_name1 : prof_index}
+        return res
+        
+
+    def __repr__(self): 
         text = "pyMEDio.Field object defined at %s level\n"%(self.SUPPORT)
         text += "   Field Name : %s \n"%(self.NAME)
         text += "   Components : " + " ; ".join(self.COMPONENTS) + "\n"

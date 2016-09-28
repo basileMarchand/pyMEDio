@@ -28,11 +28,11 @@ _MED2MED = {"PO1":{"nn":1,"id":"PO1","ngauss":0,"geo":'001'},
             "SE2":{"nn":2,'id':"SE2","ngauss":1,"geo":'102'},
             "TR3":{"nn":3,'id':"TR3","ngauss":3,"geo":'203'},
             "QU4":{"nn":4,'id':"QU4","ngauss":3,"geo":'204'},
-            "TE4":{"nn":4,'id':"TE4","ngauss":4,"geo":'304'}}
+            "TE4":{"nn":4,'id':"TE4","ngauss":4,"geo":'304'},
+            "PY5":{"nn":5,'id':"PY5","ngauss":4,"geo":'305'}}
 
 
 ### Table for Reader class
-
 
 _MED2VTK = {"PO1":{"nn":1,"id":1},
             "SE2":{"nn":2,'id':3},
@@ -45,10 +45,6 @@ _MED2MSH = {"PO1":{"nn":1,"id":15},
              "TR3":{"nn":3,'id':2},
              "QU4":{"nn":4,'id':3},
              "TE4":{"nn":4,'id':4}}
-
-
-
-
 
 ### Table for Writer class
 
