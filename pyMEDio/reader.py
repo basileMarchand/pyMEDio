@@ -378,7 +378,7 @@ class MEDReader(object):
         components = [ comp_crude[(i*16):(i+1)*16].strip().decode('utf-8') for i in range(N_COMPO)]
 
         field_time = grp_sol["%.20d%.20d"%(time, time)]['NOE']
-        profil_name = field_time.attrs['PFL']
+        profil_name = field_time.attrs['PFL'].decode("utf-8")
         if profil_name != "MED_NO_PROFILE_INTERNAL":
             profil = self.__read_profile(profil_name)
         else:
@@ -423,13 +423,25 @@ class MEDReader(object):
         ### loop one to count total number of elements
         NE = 0
         for e_type in types_elem_list:
-            NE += grp_sol_t[e_type+'/MED_NO_PROFILE_INTERNAL'].attrs['NBR']
+            profil_name = grp_sol_t[e_type].attrs['PFL'].decode("utf-8")
+            NE += grp_sol_t[e_type+'/'+profil_name].attrs['NBR']
+            
         field = np.zeros((NE, N_COMPO))
+        profils = {}
         for e_type in types_elem_list:
-            field_on_type = grp_sol_t[e_type+'/MED_NO_PROFILE_INTERNAL/CO'][:].reshape((N_COMPO,-1)).T
-            list_elem = ELEM_BY_TYPES[self.__translator[e_type.split('.')[1]]['id']]
-            field[list_elem, :] = field_on_type
-        return field, components
+            profil_name = grp_sol_t[e_type].attrs['PFL'].decode("utf-8")
+            if profil_name != "MED_NO_PROFILE_INTERNAL":
+                profil_e = self.__read_profile(profil_name)
+                profils.update(profile_e)
+                index = profie_e[profil_name]
+            else:
+                profils = None
+                list_elem = ELEM_BY_TYPES[self.__translator[e_type.split('.')[1]]['id']]
+                index = list_elem
+                
+            field_on_type = grp_sol_t[e_type+'/'+profil_name+'/CO'][:].reshape((N_COMPO,-1)).T
+            field[index, :] = field_on_type
+        return field, components, profils
     
     def _read_gauss_field(self, field_id, time, ite):
         """

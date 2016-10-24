@@ -215,6 +215,7 @@ class MEDWriter(object):
         grp_noe.attrs.create('GAU', data=b'')
         if profils is None:
             grp_noe.attrs.create('PFL', data=b'MED_NO_PROFILE_INTERNAL', dtype=np.dtype('a24'))
+            profil_name = 'MED_NO_PROFILE_INTERNAL'
         else:
             profil_name = list(profils.keys())[0]
             self.__create_profil(profil_name, profils[profil_name])
