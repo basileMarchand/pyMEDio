@@ -198,14 +198,14 @@ class MEDWriter(object):
         # compute profil if required
         profils = None
         if groups is not None:
-            profils = self.__compute_profile(groups, field.SUPPORT)
+            profils = self.__compute_profile(groups, field.MESH, field.SUPPORT)
         if field.PROFILS is not None:
             profils = field.PROFILS
 
         if field.SUPPORT == "NODES":
             self._write_field_on_nodes_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, profils, (time, ite))
         elif field.SUPPORT == "ELEMS":
-            self._write_field_on_elems_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, field.MESH.ELEMS , (time, ite))
+            self._write_field_on_elems_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, field.MESH.ELEMS , (time, ite), profils)
         elif field.SUPPORT == "GAUSS":
             self._write_field_on_gauss_at_time(field.MESH, field.NAME, field[:], field.COMPONENTS, (time, ite))
 
@@ -218,7 +218,7 @@ class MEDWriter(object):
             profil_name = 'MED_NO_PROFILE_INTERNAL'
         else:
             profil_name = list(profils.keys())[0]
-            self.__create_profil(profil_name, profils[profil_name])
+            self.__create_profil(profil_name, profils[profil_name], 0)
             grp_noe.attrs.create('PFL', data=profil_name.encode(), dtype=np.dtype('a24'))
             ## then reduce field to profil index
             field = field[profils[profil_name]]
@@ -230,19 +230,38 @@ class MEDWriter(object):
         data2store = field.T.ravel()
         data_value = grp_4.create_dataset("CO", data=data2store)
         
-    def _write_field_on_elems_at_time(self, mesh, field_id, field, COMPO, types_dict, time):
+    def _write_field_on_elems_at_time(self, mesh, field_id, field, COMPO, types_dict, time, profils):
         grp = self.__field_structure(mesh, field_id, COMPO, time)
-        for e_type, e_list in types_dict.items():
-            grp_mai = grp.create_group("MAI."+self.__translator[e_type]['id'])
-            grp_mai.attrs.create('GAU', data=b'')
-            grp_mai.attrs.create('PFL', data=b'MED_NO_PROFILE_INTERNAL', dtype=np.dtype('a24'))
-            ## level 4
-            grp_4 = grp_mai.create_group('MED_NO_PROFILE_INTERNAL')
-            grp_4.attrs.create('GAU', data=b'')
-            grp_4.attrs.create('NBR', data=len(e_list), dtype=np.int32)
-            grp_4.attrs.create('NGA', data=1, dtype=np.int32)
-            data2store = field[e_list,:].T.ravel()
-            data_value = grp_4.create_dataset("CO", data=data2store)
+
+        if profils is None:
+            for e_type, e_list in types_dict.items():
+                grp_mai = grp.create_group("MAI."+self.__translator[e_type]['id'])
+                grp_mai.attrs.create('GAU', data=b'')
+                prof_name = 'MED_NO_PROFILE_INTERNAL'
+                e_id = e_list
+                grp_mai.attrs.create('PFL', data=prof_name.encode(), dtype=np.dtype('a24'))
+                ## level 4
+                grp_4 = grp_mai.create_group(prof_name)
+                grp_4.attrs.create('GAU', data=b'')
+                grp_4.attrs.create('NBR', data=len(e_id), dtype=np.int32)
+                grp_4.attrs.create('NGA', data=1, dtype=np.int32)
+                data2store = field[e_id,:].T.ravel()
+                data_value = grp_4.create_dataset("CO", data=data2store)
+        else:
+            for e_type, prof in profils.items():
+                grp_mai = grp.create_group("MAI."+self.__translator[e_type]['id'])
+                grp_mai.attrs.create('GAU', data=b'')
+                prof_name = list(prof.keys())[0]   ###list(profils.keys())[0]
+                e_id = prof[prof_name]
+                self.__create_profil(prof_name, np.array(e_id), types_dict[e_type][0])
+                grp_mai.attrs.create('PFL', data=prof_name.encode(), dtype=np.dtype('a24'))
+                ## level 4
+                grp_4 = grp_mai.create_group(prof_name)
+                grp_4.attrs.create('GAU', data=b'')
+                grp_4.attrs.create('NBR', data=len(e_id), dtype=np.int32)
+                grp_4.attrs.create('NGA', data=1, dtype=np.int32)
+                data2store = field[e_id,:].T.ravel()
+                data_value = grp_4.create_dataset("CO", data=data2store)
         
     def _write_field_on_gauss_at_time(self, mesh, field_id, field, COMPO, types_dict, time):
         grp = self.__field_structure(mesh, field_id, COMPO, time)
@@ -289,7 +308,7 @@ class MEDWriter(object):
         return grp_debile
 
 
-    def __create_profil(self, profil_name, profil_index):
+    def __create_profil(self, profil_name, profil_index, e_offset):
         """ 
         Method which create PROFIL in a med file
         """
@@ -298,9 +317,35 @@ class MEDWriter(object):
         if profil_name not in self.__med_root["/PROFILS"].keys():
             pfl_group = self.__med_root["/PROFILS"].create_group(profil_name)
             pfl_group.attrs.create('NBR', data=profil_index.shape[0], dtype=np.int32)
-            pfl_group.create_dataset("PFL", data=profil_index+1)
+            pfl_group.create_dataset("PFL", data=profil_index-(e_offset-1), dtype=np.int32)
         else:
             pass
+
+
+    def __compute_profile(self, groups_name, mesh, support):
+        e_id = mesh.GROUPS[groups_name]
+        if support == "NODES":
+            ## compute node profil
+            node = []
+            for e in e_id:
+                node += mesh.CONNEC[e][3:]
+            node_list = list(set(node))
+            profil = {groups_name:node_list}
+        elif support == "ELEMS":
+            ## compute elem profil
+            types_elem = {}
+            for key in self.__translator.keys():
+                types_elem[self.__translator[key]['id']] = []
+
+            for e in e_id:
+                e_type = mesh.CONNEC[e][1]
+                types_elem[e_type].append(e)
+
+            profil = {}
+            for key, value in types_elem.items():
+                if len(value) != 0:
+                    profil[key] = {groups_name+"_"+key : value}
+        return profil
 
 
 
