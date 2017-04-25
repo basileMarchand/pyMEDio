@@ -217,13 +217,13 @@ class MEDReader(object):
             for word in name_bytes:
                 name_tmp.append(word.tostring().decode().rstrip("\x00").rstrip())
             name = "_".join(name_tmp)
-
+            if 'FAMILLE_ZERO' in name:
+                continue
             med_id = str(self.med_root['FAS'][msh_name]['ELEME'][grp_key].attrs['NUM'])
             med_grp_name[med_id] = name
         
         if "FAMILLE_ZERO" in self.med_root['FAS'][msh_name].keys():
             med_grp_name[str(0)] = "FAMILLE_ZERO"
-            
     
         _LOGGER.info("reading elements")
         _LOGGER.info("ne = {}".format(NE))
@@ -248,7 +248,6 @@ class MEDReader(object):
                 
         ### Create the group dictionnary
         list_grp_name = list(set(group_list[:,0].tolist() + [0]))
-
         group_list.view('i8,i8').sort(order=['f1'], axis=0)
         group_dic = {}
         for key,value in med_grp_name.items():
@@ -314,6 +313,8 @@ class MEDReader(object):
             mesh = self.__readed_meshes[mesh_support]
         else:
             mesh = self.read_mesh(mesh_support)
+            #mesh = None
+            
 
         if field_support == "NODES":
             val, components, profil = self._read_nodal_field(field_id, time, ite)
